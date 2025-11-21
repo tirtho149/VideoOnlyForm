@@ -495,23 +495,7 @@
                 {currentPitch.description || 'Loading pitch description...'}
               </p>
               
-              {/* Video Section */}
-              {assignedPitches[sampleIndex] && (
-                <div className="mb-4">
-                  <div className="text-sm text-gray-600 mb-2 font-semibold">Watch the pitch video:</div>
-                  <video 
-                    controls 
-                    className="w-full rounded-lg shadow-md"
-                    preload="metadata"
-                  >
-                    <source 
-                      src={`https://raw.githubusercontent.com/tirtho149/Form/main/videos/${assignedPitches[sampleIndex]}.mp4`} 
-                      type="video/mp4" 
-                    />
-                    Your browser does not support the video tag.
-                  </video>
-                </div>
-              )}
+              
               
               {/* Investment Percentage Selection */}
               {currentPitch.loanAmount && (
