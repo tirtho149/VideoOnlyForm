@@ -58,6 +58,7 @@
       const [assignedPitches, setAssignedPitches] = useState([]);
       const [pitchesContent, setPitchesContent] = useState([]);
       const [fadeState, setFadeState] = useState('visible');
+      const [submittedPitches, setSubmittedPitches] = useState([]);
       
       const [samplesData, setSamplesData] = useState(Array(5).fill(null).map(() => ({
         economicCredibility: '', environmentalCredibility: '', socialCredibility: '',
@@ -95,19 +96,14 @@
         const contents = [];
         for (const pitchId of pitchIds) {
           try {
-            // Try to load from data folder (if you have JSON files)
             const response = await fetch(`./data/${pitchId}.json`);
             if (response.ok) {
               const data = await response.json();
-
-              // Automatically fix image path if it's relative (your current format)
               if (data.image && !data.image.startsWith('http')) {
                 data.image = `https://raw.githubusercontent.com/tirtho149/Form/main/${data.image}`;
               }
-
               contents.push(data);
             } else {
-              // Fallback to placeholder
               contents.push({ 
                 Name: `Pitch ${pitchId}`, 
                 description: 'Pitch description will be loaded here.',
@@ -135,12 +131,17 @@
           try {
             const stored = localStorage.getItem('assignedPitches');
             const storedEmail = localStorage.getItem('evaluatorEmail');
+            const storedSubmitted = localStorage.getItem('submittedPitches');
             
             if (stored && storedEmail) {
               const pitchIds = JSON.parse(stored);
               setAssignedPitches(pitchIds);
               setEvaluatorId(storedEmail);
               await loadPitchContent(pitchIds);
+              
+              if (storedSubmitted) {
+                setSubmittedPitches(JSON.parse(storedSubmitted));
+              }
             }
           } catch (error) {
             console.error('Error loading saved state:', error);
@@ -154,8 +155,11 @@
 
       const getNewPitches = async (email) => {
         try {
+          console.log('Fetching pitches for:', email);
           const response = await fetch(`${APPS_SCRIPT_URL}?action=getAvailablePitches&email=${encodeURIComponent(email)}`);
           const data = await response.json();
+          
+          console.log('Server response:', data);
           
           if (data.success && data.pitchIds && data.pitchIds.length === 5) {
             setAssignedPitches(data.pitchIds);
@@ -205,6 +209,86 @@
         return true;
       };
 
+      const submitCurrentPitch = async () => {
+        if (!validateCurrentSample()) return false;
+
+        setIsSubmitting(true);
+        setStatus({ type: '', message: '' });
+
+        const sampleIndex = currentPage - 1;
+        const sample = samplesData[sampleIndex];
+
+        try {
+          const submissionData = {
+            action: 'submitRating',
+            evaluatorId: evaluatorId,
+            pitchId: assignedPitches[sampleIndex],
+            sampleNumber: currentPage,
+            investmentPercentage: sample.investmentPercentage,
+            investmentAmount: pitchesContent[sampleIndex]?.loanAmount 
+              ? (parseFloat(pitchesContent[sampleIndex].loanAmount) * parseInt(sample.investmentPercentage) / 100).toFixed(2)
+              : '0',
+            ratings: {
+              credibility: {
+                economic: sample.economicCredibility,
+                environmental: sample.environmentalCredibility,
+                social: sample.socialCredibility
+              },
+              emotionalAppeal: {
+                economic: sample.economicEmotionalAppeal,
+                environmental: sample.environmentalEmotionalAppeal,
+                social: sample.socialEmotionalAppeal
+              },
+              logic: {
+                economic: sample.economicLogic,
+                environmental: sample.environmentalLogic,
+                social: sample.socialLogic
+              },
+              timing: {
+                economic: sample.economicTiming,
+                environmental: sample.environmentalTiming,
+                social: sample.socialTiming
+              }
+            },
+            timestamp: new Date().toISOString()
+          };
+
+          console.log('Submitting pitch data:', submissionData);
+
+          const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(submissionData)
+          });
+
+          console.log('Response status:', response.status);
+          const result = await response.json();
+          console.log('Server result:', result);
+
+          if (result.success) {
+            const newSubmitted = [...submittedPitches, currentPage];
+            setSubmittedPitches(newSubmitted);
+            localStorage.setItem('submittedPitches', JSON.stringify(newSubmitted));
+            
+            setStatus({ 
+              type: 'success', 
+              message: `Pitch ${currentPage} submitted successfully!` 
+            });
+            
+            return true;
+          } else {
+            setStatus({ type: 'error', message: result.message || 'Thank You for your submission!' });
+            return false;
+          }
+        } catch (error) {
+          console.error('Submission error:', error);
+          setStatus({ type: 'error', message: `Thank You for your submission!: ${error.message}.` });
+          return false;
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+
       const handleNext = async () => {
         setStatus({ type: '', message: '' });
         
@@ -218,12 +302,16 @@
             }
           }
         } else if (currentPage < 5) {
-          if (validateCurrentSample()) {
-            setFadeState('hidden');
+          const submitted = await submitCurrentPitch();
+          if (submitted) {
             setTimeout(() => {
-              setCurrentPage(currentPage + 1);
-              setFadeState('visible');
-            }, 300);
+              setFadeState('hidden');
+              setTimeout(() => {
+                setCurrentPage(currentPage + 1);
+                setFadeState('visible');
+                setStatus({ type: '', message: '' });
+              }, 300);
+            }, 1500);
           }
         }
       };
@@ -239,59 +327,10 @@
         }
       };
 
-      const handleSubmitAll = async () => {
-        if (!validateCurrentSample()) return;
-
-        setIsSubmitting(true);
-        setStatus({ type: '', message: '' });
-
-        try {
-          const submissionData = {
-            action: 'submitRatings',
-            evaluatorId: evaluatorId,
-            pitchIds: assignedPitches,
-            ratings: samplesData.map((sample, index) => ({
-              pitchId: assignedPitches[index],
-              sampleNumber: index + 1,
-              investmentPercentage: sample.investmentPercentage,
-              investmentAmount: pitchesContent[index]?.loanAmount 
-                ? (parseFloat(pitchesContent[index].loanAmount) * parseInt(sample.investmentPercentage) / 100).toFixed(2)
-                : '0',
-              ratings: {
-                credibility: {
-                  economic: sample.economicCredibility,
-                  environmental: sample.environmentalCredibility,
-                  social: sample.socialCredibility
-                },
-                emotionalAppeal: {
-                  economic: sample.economicEmotionalAppeal,
-                  environmental: sample.environmentalEmotionalAppeal,
-                  social: sample.socialEmotionalAppeal
-                },
-                logic: {
-                  economic: sample.economicLogic,
-                  environmental: sample.environmentalLogic,
-                  social: sample.socialLogic
-                },
-                timing: {
-                  economic: sample.economicTiming,
-                  environmental: sample.environmentalTiming,
-                  social: sample.socialTiming
-                }
-              }
-            })),
-            timestamp: new Date().toISOString()
-          };
-
-          const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(submissionData)
-          });
-
-          const result = await response.json();
-
-          if (result.success) {
+      const handleFinalSubmit = async () => {
+        const submitted = await submitCurrentPitch();
+        if (submitted) {
+          setTimeout(() => {
             setStatus({ 
               type: 'success', 
               message: 'All 5 loan pitches submitted successfully! Thank you for your analysis.' 
@@ -299,12 +338,14 @@
             
             localStorage.removeItem('assignedPitches');
             localStorage.removeItem('evaluatorEmail');
+            localStorage.removeItem('submittedPitches');
             
             setTimeout(() => {
               setCurrentPage(0);
               setEvaluatorId('');
               setAssignedPitches([]);
               setPitchesContent([]);
+              setSubmittedPitches([]);
               setSamplesData(Array(5).fill(null).map(() => ({
                 economicCredibility: '', environmentalCredibility: '', socialCredibility: '',
                 economicEmotionalAppeal: '', environmentalEmotionalAppeal: '', socialEmotionalAppeal: '',
@@ -314,14 +355,7 @@
               })));
               setStatus({ type: '', message: '' });
             }, 3000);
-          } else {
-            setStatus({ type: 'error', message: result.message || 'Failed to submit. Please try again.' });
-          }
-        } catch (error) {
-          console.error('Submission error:', error);
-          setStatus({ type: 'error', message: 'Failed to submit. Please try again.' });
-        } finally {
-          setIsSubmitting(false);
+          }, 1500);
         }
       };
 
@@ -369,7 +403,7 @@
                     <li><strong>2 - Somewhat ineffective</strong></li>
                     <li><strong>1 - Highly ineffective</strong></li>
                   </ul>
-                  <p className="mt-4 text-gray-700">You will evaluate 5 different loan pitches using these criteria.</p>
+                  <p className="mt-4 text-gray-700">You will evaluate 5 different loan pitches using these criteria. Each pitch will be submitted individually.</p>
                 </div>
 
                 {status.message && (
@@ -423,14 +457,14 @@
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-600 mb-1">Progress</div>
-                  <div className="text-2xl font-bold text-blue-600">{currentPage}/5</div>
+                  <div className="text-2xl font-bold text-blue-600">{submittedPitches.length}/5 submitted</div>
                 </div>
               </div>
               
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div 
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${(currentPage / 5) * 100}%` }}
+                  style={{ width: `${(submittedPitches.length / 5) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -446,19 +480,38 @@
                   />
                 </div>
               )}
-              <div className="flex items-start justify-between mb-3">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  {currentPitch.Name || 'Loading...'}
-                </h2>
-                {currentPitch.loanAmount && (
-                  <div className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-lg ml-4">
+              <h2 className="text-2xl font-bold text-gray-800 mb-3">
+                {currentPitch.Name || 'Loading...'}
+              </h2>
+              {currentPitch.loanAmount && (
+                <div className="mb-3">
+                  <div className="text-sm text-gray-600 mb-1">Asked amount</div>
+                  <div className="inline-block bg-green-600 text-white px-5 py-2 rounded-md font-bold text-xl">
                     ${currentPitch.loanAmount}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
               <p className="text-gray-700 text-lg leading-relaxed mb-4">
                 {currentPitch.description || 'Loading pitch description...'}
               </p>
+              
+              {/* Video Section */}
+              {assignedPitches[sampleIndex] && (
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600 mb-2 font-semibold">Watch the pitch video:</div>
+                  <video 
+                    controls 
+                    className="w-full rounded-lg shadow-md"
+                    preload="metadata"
+                  >
+                    <source 
+                      src={`https://raw.githubusercontent.com/tirtho149/Form/main/videos/${assignedPitches[sampleIndex]}.mp4`} 
+                      type="video/mp4" 
+                    />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              )}
               
               {/* Investment Percentage Selection */}
               {currentPitch.loanAmount && (
@@ -568,24 +621,34 @@
               {currentPage < 5 ? (
                 <button
                   onClick={handleNext}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  Next Pitch
-                  <ChevronRight />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      Submit & Next
+                      <ChevronRight />
+                    </>
+                  )}
                 </button>
               ) : (
                 <button
-                  onClick={handleSubmitAll}
+                  onClick={handleFinalSubmit}
                   disabled={isSubmitting}
                   className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 />
-                      Submitting All Pitches...
+                      Submitting...
                     </>
                   ) : (
-                    'Submit All Pitches'
+                    'Submit Final Pitch'
                   )}
                 </button>
               )}
