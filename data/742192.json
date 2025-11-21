@@ -1,5 +1,6 @@
 {
   "Name": "Vladimir",
   "description": "Vladimir is requesting your financial help again, this time for medical help. He hasn't been feeling well lately and was referred to some health specialist in the capital city.\r\n\r\nVladimir is very thankful to you all for the previous help and promises that he will pay this loan within the time-frame required.",
-  "image": "1360kivaImages/742192.jpg"
+  "image": "1360kivaImages/742192.jpg",
+  "loanAmount": "1450.00"
 }

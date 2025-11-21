@@ -1,5 +1,6 @@
 {
   "Name": "Fred",
   "description": "Fred is is married and has 2 children. He farms on subsistence level, but also grows coffee to sell with the aim of improving on his daily income. He is requesting a loan of 1,000,000 UGX (one million shillings) to buy farm inputs, especially manure and pesticides for the coffee plantation. This way, he will boost his yields and income. Fred is said to be a hard working person and appreciates the support in boosting his resources.",
-  "image": "1360kivaImages/1775046.jpg"
+  "image": "1360kivaImages/1775046.jpg",
+  "loanAmount": "275.00"
 }

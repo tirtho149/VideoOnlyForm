@@ -11,7 +11,6 @@
 </head>
 <body>
   <div id="root"></div>
-
   
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
@@ -64,7 +63,8 @@
         economicCredibility: '', environmentalCredibility: '', socialCredibility: '',
         economicEmotionalAppeal: '', environmentalEmotionalAppeal: '', socialEmotionalAppeal: '',
         economicLogic: '', environmentalLogic: '', socialLogic: '',
-        economicTiming: '', environmentalTiming: '', socialTiming: ''
+        economicTiming: '', environmentalTiming: '', socialTiming: '',
+        investmentPercentage: ''
       })));
 
       // IMPORTANT: Replace this with your actual Google Apps Script Web App URL
@@ -99,13 +99,20 @@
             const response = await fetch(`./data/${pitchId}.json`);
             if (response.ok) {
               const data = await response.json();
+
+              // Automatically fix image path if it's relative (your current format)
+              if (data.image && !data.image.startsWith('http')) {
+                data.image = `https://raw.githubusercontent.com/tirtho149/Form/main/${data.image}`;
+              }
+
               contents.push(data);
             } else {
               // Fallback to placeholder
               contents.push({ 
                 Name: `Pitch ${pitchId}`, 
                 description: 'Pitch description will be loaded here.',
-                image: '' 
+                image: '',
+                loanAmount: '0'
               });
             }
           } catch (error) {
@@ -113,7 +120,8 @@
             contents.push({ 
               Name: `Pitch ${pitchId}`, 
               description: 'Pitch description will be loaded here.',
-              image: '' 
+              image: '',
+              loanAmount: '0'
             });
           }
         }
@@ -191,7 +199,7 @@
         const emptyFields = Object.entries(sample).filter(([_, value]) => !value);
         
         if (emptyFields.length > 0) {
-          setStatus({ type: 'error', message: `Please complete all ratings for Pitch ${currentPage}` });
+          setStatus({ type: 'error', message: `Please complete all ratings and investment percentage for Pitch ${currentPage}` });
           return false;
         }
         return true;
@@ -245,6 +253,10 @@
             ratings: samplesData.map((sample, index) => ({
               pitchId: assignedPitches[index],
               sampleNumber: index + 1,
+              investmentPercentage: sample.investmentPercentage,
+              investmentAmount: pitchesContent[index]?.loanAmount 
+                ? (parseFloat(pitchesContent[index].loanAmount) * parseInt(sample.investmentPercentage) / 100).toFixed(2)
+                : '0',
               ratings: {
                 credibility: {
                   economic: sample.economicCredibility,
@@ -297,7 +309,8 @@
                 economicCredibility: '', environmentalCredibility: '', socialCredibility: '',
                 economicEmotionalAppeal: '', environmentalEmotionalAppeal: '', socialEmotionalAppeal: '',
                 economicLogic: '', environmentalLogic: '', socialLogic: '',
-                economicTiming: '', environmentalTiming: '', socialTiming: ''
+                economicTiming: '', environmentalTiming: '', socialTiming: '',
+                investmentPercentage: ''
               })));
               setStatus({ type: '', message: '' });
             }, 3000);
@@ -433,12 +446,48 @@
                   />
                 </div>
               )}
-              <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                {currentPitch.Name || 'Loading...'}
-              </h2>
-              <p className="text-gray-700 text-lg leading-relaxed">
+              <div className="flex items-start justify-between mb-3">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {currentPitch.Name || 'Loading...'}
+                </h2>
+                {currentPitch.loanAmount && (
+                  <div className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-lg ml-4">
+                    ${currentPitch.loanAmount}
+                  </div>
+                )}
+              </div>
+              <p className="text-gray-700 text-lg leading-relaxed mb-4">
                 {currentPitch.description || 'Loading pitch description...'}
               </p>
+              
+              {/* Investment Percentage Selection */}
+              {currentPitch.loanAmount && (
+                <div className="bg-white p-6 rounded-lg border-2 border-green-200 mt-4">
+                  <label className="block text-lg font-semibold text-gray-800 mb-3">
+                    What percentage of this ${currentPitch.loanAmount} loan would you invest?
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[25, 50, 75, 100].map((percentage) => {
+                      const amount = (parseFloat(currentPitch.loanAmount) * percentage / 100).toFixed(2);
+                      const isSelected = currentSample.investmentPercentage === percentage.toString();
+                      return (
+                        <button
+                          key={percentage}
+                          onClick={() => handleSampleChange(sampleIndex, 'investmentPercentage', percentage.toString())}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            isSelected 
+                              ? 'border-green-600 bg-green-50 shadow-md' 
+                              : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="text-2xl font-bold text-gray-800">{percentage}%</div>
+                          <div className="text-sm text-gray-600 mt-1">${amount}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <p className="text-gray-600 mb-6">
