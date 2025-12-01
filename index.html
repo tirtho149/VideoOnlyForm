@@ -61,7 +61,6 @@
       const [evaluatorId, setEvaluatorId] = useState('');
       const [status, setStatus] = useState({ type: '', message: '' });
       const [isLoading, setIsLoading] = useState(false);
-      const [assignedPitches, setAssignedPitches] = useState([]);
       const [pitchesContent, setPitchesContent] = useState([]);
       const [fadeState, setFadeState] = useState('visible');
       const [completedPitches, setCompletedPitches] = useState([]);
@@ -75,7 +74,9 @@
       })));
 
       const INSTRUCTOR_EMAIL = 'tirthoroyapon@gmail.com';
-      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEdem8RWAPGaoMMy_GjNqA825xnIHc3-ABhSTCrD9UFCVR1y6HqPmK89PvuHISAkqoXg/exec';
+      
+      // All available pitch IDs - student gets random 5
+      const ALL_PITCH_IDS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
       const assessmentCategories = {
         'Credibility': 'Appeals based on source expertise, trustworthiness, and authority',
@@ -101,6 +102,12 @@
         const response = await fetch(url);
         const text = await response.text();
         return JSON.parse(text);
+      };
+
+      // Randomly select 5 pitches from available pool
+      const getRandomPitches = () => {
+        const shuffled = [...ALL_PITCH_IDS].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, 5);
       };
 
       const loadPitchContent = useCallback(async (pitchIds) => {
@@ -146,7 +153,6 @@
             
             if (stored && storedEmail) {
               const pitchIds = JSON.parse(stored);
-              setAssignedPitches(pitchIds);
               setEvaluatorId(storedEmail);
               await loadPitchContent(pitchIds);
               
@@ -168,28 +174,19 @@
         loadSavedState();
       }, [loadPitchContent]);
 
-      const getNewPitches = async (email) => {
+      const assignNewPitches = async (email) => {
         try {
-          console.log('Fetching pitches for:', email);
-          const data = await fetchAndParseJSON(
-            `${APPS_SCRIPT_URL}?action=getAvailablePitches&email=${encodeURIComponent(email)}`
-          );
-          
-          console.log('Server response:', data);
-          
-          if (data.success && data.pitchIds && data.pitchIds.length === 5) {
-            setAssignedPitches(data.pitchIds);
-            localStorage.setItem('assignedPitches', JSON.stringify(data.pitchIds));
-            localStorage.setItem('evaluatorEmail', email);
-            await loadPitchContent(data.pitchIds);
-            return true;
-          } else {
-            setStatus({ type: 'error', message: data.message || 'Failed to get pitches. Please try again.' });
-            return false;
-          }
+          setIsLoading(true);
+          const pitchIds = getRandomPitches();
+          localStorage.setItem('assignedPitches', JSON.stringify(pitchIds));
+          localStorage.setItem('evaluatorEmail', email);
+          await loadPitchContent(pitchIds);
+          setIsLoading(false);
+          return true;
         } catch (error) {
-          console.error('Error fetching pitches:', error);
-          setStatus({ type: 'error', message: 'Failed to connect to server. Please check your internet connection.' });
+          console.error('Error assigning pitches:', error);
+          setStatus({ type: 'error', message: 'Failed to load pitches. Please refresh the page.' });
+          setIsLoading(false);
           return false;
         }
       };
@@ -238,6 +235,7 @@
       };
 
       const generateEmailBody = () => {
+        const assignedPitches = JSON.parse(localStorage.getItem('assignedPitches') || '[]');
         let emailBody = `Kiva Pitch Analysis Submission\n`;
         emailBody += `Student Email: ${evaluatorId}\n`;
         emailBody += `Submission Date: ${new Date().toLocaleString()}\n\n`;
@@ -253,7 +251,7 @@
 
           emailBody += `PITCH ${i + 1} - ID: ${pitchId}\n`;
           emailBody += `Name: ${pitchContent.Name || 'N/A'}\n`;
-          emailBody += `Investment: ${pitch.investmentPercentage}% ($${investmentAmount})\n\n`;
+          emailBody += `Investment: ${pitch.investmentPercentage}% (${investmentAmount})\n\n`;
           
           emailBody += `Economic Credibility: ${pitch.economicCredibility}\n`;
           emailBody += `Environmental Credibility: ${pitch.environmentalCredibility}\n`;
@@ -282,9 +280,7 @@
         
         if (currentPage === 0) {
           if (validateEvaluatorPage()) {
-            setIsLoading(true);
-            const success = await getNewPitches(evaluatorId);
-            setIsLoading(false);
+            const success = await assignNewPitches(evaluatorId);
             if (success) {
               setCurrentPage(1);
             }
