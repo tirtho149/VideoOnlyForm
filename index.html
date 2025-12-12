@@ -516,33 +516,7 @@ if (response.ok) {
                 {currentPitch.description || 'Loading pitch description...'}
               </p>
               
-              {currentPitch.loanAmount && (
-                <div className="bg-white p-6 rounded-lg border-2 border-green-200 mt-4">
-                  <label className="block text-lg font-semibold text-gray-800 mb-3">
-                    What percentage of this ${currentPitch.loanAmount} loan would you invest?
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {[25, 50, 75, 100].map((percentage) => {
-                      const amount = (parseFloat(currentPitch.loanAmount) * percentage / 100).toFixed(2);
-                      const isSelected = currentSample.investmentPercentage === percentage.toString();
-                      return (
-                        <button
-                          key={percentage}
-                          onClick={() => handleSampleChange(sampleIndex, 'investmentPercentage', percentage.toString())}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            isSelected 
-                              ? 'border-green-600 bg-green-50 shadow-md' 
-                              : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="text-2xl font-bold text-gray-800">{percentage}%</div>
-                          <div className="text-sm text-gray-600 mt-1">${amount}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+
             </div>
 
             <p className="text-gray-600 mb-6">
@@ -599,7 +573,35 @@ if (response.ok) {
                 </tbody>
               </table>
             </div>
-
+            
+            {currentPitch.loanAmount && (
+              <div className="bg-white p-6 rounded-lg border-2 border-green-200 mb-6">
+                <label className="block text-lg font-semibold text-gray-800 mb-3">
+                  What percentage of this ${currentPitch.loanAmount} loan would you invest?
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[25, 50, 75, 100].map((percentage) => {
+                    const amount = (parseFloat(currentPitch.loanAmount) * percentage / 100).toFixed(2);
+                    const isSelected = currentSample.investmentPercentage === percentage.toString();
+                    return (
+                      <button
+                        key={percentage}
+                        onClick={() => handleSampleChange(sampleIndex, 'investmentPercentage', percentage.toString())}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          isSelected 
+                            ? 'border-green-600 bg-green-50 shadow-md' 
+                            : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="text-2xl font-bold text-gray-800">{percentage}%</div>
+                        <div className="text-sm text-gray-600 mt-1">${amount}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
             {status.message && (
               <div className={`flex items-start gap-2 p-4 rounded-lg mb-6 ${
                 status.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
