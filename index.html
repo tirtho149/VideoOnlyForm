@@ -1,3 +1,92 @@
+
+
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Kiva Loan Pitch Analysis</title> <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script> <script crossorigin src="
+
+pasted
+
+Images are cutted off in this how can I resolve this
+
+3:59 PM
+The images are being cut off because there's no code to display them in your current implementation. Looking at your code, I can see that:
+
+You're loading image data from the JSON files and fixing the image path
+But you're never actually displaying the images in the UI
+Here's how to fix it by adding the image display to your pitch section:
+
+Untitled
+Text 
+I've added an image display section that:
+
+Shows the image if it exists in the pitch data
+Uses object-contain to ensure the entire image is visible without being cropped
+Sets max-h-96 to limit height while maintaining aspect ratio
+Includes error handling to hide images that fail to load
+Places it after the video (if present) and before the title
+The key CSS classes used:
+
+w-full - Full width of container
+h-auto - Automatically adjusts height to maintain aspect ratio
+max-h-96 - Maximum height of 384px (24rem)
+object-contain - Scales the image to fit within the box while maintaining aspect ratio (no cropping)
+rounded-lg shadow-md - Styling for visual appeal
+If images are still appearing cut off, you might need to adjust the image paths in your JSON files to point to the correct location where your images are stored.
+
+Give me full corrected cpde
+
+4:00 PM
+Kiva Loan Pitch Analysis - Fixed
+Interactive artifact ∙ Version 2 
+Continue
+
+4:02 PM
+I've provided the complete corrected code with the image display section added. The key changes are:
+
+Added image display section right after the video section
+Uses proper CSS classes to prevent image cropping:
+object-contain - maintains aspect ratio without cropping
+max-h-96 - limits height while preserving the full image
+bg-white - white background for transparency in images
+Error handling to hide images that fail to load
+Proper spacing with mb-4 margin
+The images should now display fully without being cut off. If images still don't appear, make sure:
+
+Your JSON files have the correct image paths
+The image files are in the correct directory relative to your HTML file
+The image URLs are accessible
+I dont know I am seeing white scrren
+
+4:07 PM
+Let me help you diagnose the white screen issue. This is usually caused by a JavaScript error. Let's create a simpler version with better error handling and logging:
+
+Kiva Loan Pitch Analysis - Debugged
+Interactive artifact ∙ Version 3 
+Continue
+
+4:10 PM
+I've added extensive console.log statements throughout the code. To debug the white screen:
+
+Open your browser's Developer Console (F12 or right-click → Inspect → Console tab)
+Look for error messages in red
+Check the console logs I added to see where the code is failing
+The most common causes of white screen:
+
+Missing data files - Check if ./data/[pitchId].json files exist
+JavaScript errors - Will show in console
+React not loading - Check if CDN links work
+localStorage issues - Try clearing it
+Can you open the browser console and tell me what errors or logs you see?
+
+
+
+
+
+
+
+
+Claude is AI and can make mistakes. Please double-check responses.
+27.53 KB •635 lines
+•
+Formatting may be inconsistent from source
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -106,6 +195,12 @@
         '4': 'Highly effective'
       };
 
+      const fetchAndParseJSON = async (url) => {
+        const response = await fetch(url);
+        const text = await response.text();
+        return JSON.parse(text);
+      };
+
       // Randomly select 5 pitches from available pool
       const getRandomPitches = () => {
         const shuffled = [...ALL_PITCH_IDS].sort(() => Math.random() - 0.5);
@@ -117,18 +212,18 @@
         for (const pitchId of pitchIds) {
           try {
             const response = await fetch(`./data/${pitchId}.json`);
-            if (response.ok) {
-              const data = await response.json();
-              // Fix image path to use correct location
-              if (data.image && !data.image.startsWith('http')) {
-                // Assuming images are in the same directory structure
-                data.image = `./${data.image}`;
-              }
-              
-              // Automatically add video URL based on pitch ID
-              data.video = `https://cdn.jsdelivr.net/gh/tirtho149/VideoFormKiva@main/videos/${pitchId}.mp4`;
-              
-              contents.push(data);
+if (response.ok) {
+  const data = await response.json();
+  // Fix image path to use correct location
+  if (data.image && !data.image.startsWith('http')) {
+    // Assuming images are in the same directory structure
+    data.image = `./${data.image}`;
+  }
+  
+  // Automatically add video URL based on pitch ID
+  data.video = `https://cdn.jsdelivr.net/gh/tirtho149/VideoFormKiva@main/videos/${pitchId}.mp4`;
+  
+  contents.push(data);
             } else {
               console.error(`Failed to load ${pitchId}.json`);
               contents.push({ 
@@ -481,20 +576,6 @@
                 </div>
               )}
               
-              {currentPitch.image && (
-                <div className="mb-4">
-                  <img 
-                    src={currentPitch.image}
-                    alt={currentPitch.Name || 'Pitch image'}
-                    className="w-full h-auto max-h-96 object-contain rounded-lg shadow-md bg-white"
-                    onError={(e) => {
-                      console.log('Image failed to load:', currentPitch.image);
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
-              
               <h2 className="text-2xl font-bold text-gray-800 mb-3">
                 {currentPitch.Name || 'Loading...'}
               </h2>
@@ -631,3 +712,13 @@
                   Send via Email
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<SustainabilityForm />, document.getElementById('root'));
+  </script>
+</body>
+</html>
